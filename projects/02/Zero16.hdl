@@ -1,0 +1,11 @@
+CHIP Zero16 {
+    IN
+        a[16], b;
+
+    OUT
+        out[16];
+
+    PARTS:
+        Not(in=b, out=nb);
+        And16(a=a, b[0] =nb, b[1]=nb, b[2]=nb, b[3]=nb, b[4]=nb, b[5]=nb, b[6]=nb, b[7]=nb, b[8]=nb, b[9]=nb, b[10]=nb, b[11]=nb, b[12]=nb, b[13]=nb, b[14]=nb, b[15]=nb, out=out);
+}
