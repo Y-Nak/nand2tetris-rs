@@ -1,0 +1,22 @@
+CHIP Decode {
+    IN instruction[16];
+    OUT instrt, useM, zx, nx, zy, ny, f, no, la, ld, lm, jmp[3];
+    PARTS:
+        And(a=instruction[15], b=true, out=instrt, out=instrtInner);
+
+        And(a=instruction[12], b=instrtInner, out=useM);
+        And(a=instruction[11], b=instrtInner, out=zx);
+        And(a=instruction[10], b=instrtInner, out=nx);
+        And(a=instruction[9], b=instrtInner, out=zy);
+        And(a=instruction[8], b=instrtInner, out=ny);
+        And(a=instruction[7], b=instrtInner, out=f);
+        And(a=instruction[6], b=instrtInner, out=no);
+
+        Not(in=instrtInner, out=ninstrt);
+        Or(a=instruction[5], b=ninstrt, out=la);
+        And(a=instrtInner, b=instruction[4], out=ld);
+        And(a=instrtInner, b=instruction[3], out=lm);
+        And(a=instruction[2], b=instrtInner, out=jmp[2]);
+        And(a=instruction[1], b=instrtInner, out=jmp[1]);
+        And(a=instruction[0], b=instrtInner, out=jmp[0]);
+}

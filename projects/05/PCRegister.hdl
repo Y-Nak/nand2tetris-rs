@@ -1,0 +1,20 @@
+CHIP PCRegister {
+    IN a[16], jmp[3], zr, ng, reset;
+    OUT pc[15];
+
+    PARTS:
+        Not(in=ng, out=jge);
+        Not(in=zr, out=nzr);
+        And(a=nzr, b=jge, out=jgt);
+        Not(in=jgt, out=jle);
+        DMux8Way(in=true, sel=jmp, a=isNULL, b=isJGT, c=isJEQ, d=isJGE, e=isJLT, f=isJNE, g=isJLE, h=isJMP);
+
+        And(a=isJGT, b=jgt, out=jgtOk);
+        And(a=isJEQ, b=zr, out=jeqOk);
+        And(a=isJGE, b=jge, out=jgeOk);
+        And(a=isJLT, b=ng, out=jltOk);
+        And(a=isJNE, b=nzr, out=jneOk);
+        And(a=isJLE, b=jle, out=jleOk);
+        Or8Way(in[0]=false, in[1]=jgtOk, in[2]=jeqOk, in[3]=jgeOk, in[4]=jltOk, in[5]=jneOk, in[6]=jleOk, in[7]=isJMP, out=load);
+        PC(in=a, load=load, inc=true, reset=reset, out[0..14]=pc);
+}
