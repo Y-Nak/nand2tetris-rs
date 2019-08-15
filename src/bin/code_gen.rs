@@ -4,7 +4,7 @@ use std::path::Path;
 
 use clap::{App, Arg};
 
-use nand2tetris::project06::gen_code;
+use nand2tetris::gen_code;
 
 fn main() {
     let args = App::new("code_gen")
