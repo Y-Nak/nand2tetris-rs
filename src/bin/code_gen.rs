@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{BufReader, LineWriter, Write};
+use std::io::{BufReader, BufWriter, Write};
 use std::path::Path;
 
 use clap::{App, Arg};
@@ -31,7 +31,7 @@ fn main() {
 
     let default_out = format! {"{}.hack", asm_path.file_stem().unwrap().to_str().unwrap()};
     let out_path = args.value_of("out").unwrap_or(&default_out);
-    let mut writer = LineWriter::new(
+    let mut writer = BufWriter::new(
         File::create(out_path).expect(&format! {"Can't open output file: {:?}", out_path}),
     );
     for line in code {
