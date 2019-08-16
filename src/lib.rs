@@ -1,5 +1,5 @@
-mod project06;
-mod project07;
+mod asm_gen;
+mod code_gen;
 
-pub use project06::gen_code;
-pub use project07::AsmGenerator;
+pub use asm_gen::AsmGenerator;
+pub use code_gen::gen_code;

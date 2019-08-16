@@ -1,7 +1,10 @@
+mod parser;
+mod symbol;
+
 use std::io::BufRead;
 
-use super::parser::*;
-use super::symbol::SymbolTable;
+use parser::*;
+use symbol::SymbolTable;
 
 const MAXIMUM_ADDR: u16 = 32767;
 
