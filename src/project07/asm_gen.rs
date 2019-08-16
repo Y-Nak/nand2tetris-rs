@@ -11,11 +11,20 @@ pub struct AsmGenerator {
 }
 
 impl AsmGenerator {
-    pub fn new() -> Self {
-        Self {
+    pub fn new(no_init: bool) -> Self {
+        let mut generator = Self {
             asm: Vec::new(),
             label_count: 0,
+        };
+        if no_init {
+            return generator;
         }
+        generator.asm.push(Cow::Borrowed("@256"));
+        generator.asm.push(Cow::Borrowed("D=A"));
+        generator.asm.push(Cow::Borrowed("@SP"));
+        generator.asm.push(Cow::Borrowed("M=D"));
+        generator.call("Sys.init", 0);
+        generator
     }
 
     pub fn gen(&mut self, path: impl AsRef<Path>) -> Result<(), String> {
@@ -31,7 +40,12 @@ impl AsmGenerator {
                 },
                 Command::Push(seg, offset) => self.push(seg, offset, path),
                 Command::Pop(seg, offset) => self.pop(seg, offset, path),
-                _ => unimplemented!(),
+                Command::Label(label) => self.label(&label),
+                Command::Goto(label) => self.goto(&label),
+                Command::IfGoto(label) => self.if_goto(&label),
+                Command::Function(label, n_locs) => self.function(&label, n_locs),
+                Command::Call(label, arity) => self.call(&label, arity),
+                Command::Return => self.return_(),
             }
         }
         Ok(())
@@ -128,22 +142,6 @@ impl AsmGenerator {
         self.push_dreg();
     }
 
-    fn push_static(&mut self, val: u16, path: impl AsRef<Path>) {
-        self.asm.push(Cow::Owned(
-            format! {"@{}.{}", path.as_ref().file_stem().unwrap().to_str().unwrap(), val},
-        ));
-        self.asm.push(Cow::Borrowed("D=M"));
-        self.push_dreg();
-    }
-
-    fn push_dreg(&mut self) {
-        self.asm.push(Cow::Borrowed("@SP"));
-        self.asm.push(Cow::Borrowed("A=M"));
-        self.asm.push(Cow::Borrowed("M=D"));
-        self.asm.push(Cow::Borrowed("@SP"));
-        self.asm.push(Cow::Borrowed("M=M+1"));
-    }
-
     fn pop(&mut self, segment: Segment, offset: u16, path: impl AsRef<Path>) {
         let reg = match segment {
             Argument => "@ARG",
@@ -169,6 +167,123 @@ impl AsmGenerator {
         self.asm.push(Cow::Borrowed("@R14"));
         self.asm.push(Cow::Borrowed("A=M"));
         self.asm.push(Cow::Borrowed("M=D"));
+    }
+
+    fn label(&mut self, label: &str) {
+        self.asm.push(Cow::Owned(format! {"({})", label}));
+    }
+
+    fn goto(&mut self, label: &str) {
+        self.asm.push(Cow::Owned(format! {"@{}", label}));
+        self.asm.push(Cow::Borrowed("0;JMP"));
+    }
+
+    fn if_goto(&mut self, label: &str) {
+        self.pop_dreg();
+        self.asm.push(Cow::Owned(format! {"@{}", label}));
+        self.asm.push(Cow::Borrowed("D;JNE"));
+    }
+
+    fn function(&mut self, label: &str, n_locs: u16) {
+        self.label(label);
+        self.asm.push(Cow::Borrowed("D=0"));
+        (0..n_locs).for_each(|_| self.push_dreg());
+    }
+
+    fn call(&mut self, label: &str, arity: u16) {
+        let return_label = format! {"FUNC_RETURN_{}", self.label_count()};
+        self.asm.push(Cow::Owned(format! {"@{}", return_label}));
+        self.asm.push(Cow::Borrowed("D=A"));
+        self.push_dreg();
+
+        for s in ["@LCL", "@ARG", "@THIS", "@THAT"].iter() {
+            self.asm.push(Cow::Borrowed(s));
+            self.asm.push(Cow::Borrowed("D=M"));
+            self.push_dreg();
+        }
+        self.asm.push(Cow::Borrowed("@SP"));
+        self.asm.push(Cow::Borrowed("D=M"));
+        self.asm.push(Cow::Owned(format! {"@{}", arity + 5}));
+        self.asm.push(Cow::Borrowed("D=D-A"));
+        self.asm.push(Cow::Borrowed("@ARG"));
+        self.asm.push(Cow::Borrowed("M=D"));
+        self.asm.push(Cow::Borrowed("@SP"));
+        self.asm.push(Cow::Borrowed("D=M"));
+        self.asm.push(Cow::Borrowed("@LCL"));
+        self.asm.push(Cow::Borrowed("M=D"));
+        self.asm.push(Cow::Owned(format! {"@{}", label}));
+        self.asm.push(Cow::Borrowed("0;JMP"));
+        self.label(&return_label);
+    }
+
+    fn return_(&mut self) {
+        self.asm.push(Cow::Borrowed("@LCL"));
+        self.asm.push(Cow::Borrowed("D=M"));
+        self.asm.push(Cow::Borrowed("@5"));
+        self.asm.push(Cow::Borrowed("A=D-A"));
+        self.asm.push(Cow::Borrowed("D=M"));
+        self.asm.push(Cow::Borrowed("@R13"));
+        self.asm.push(Cow::Borrowed("M=D"));
+
+        self.pop_dreg();
+        self.asm.push(Cow::Borrowed("@ARG"));
+        self.asm.push(Cow::Borrowed("A=M"));
+        self.asm.push(Cow::Borrowed("M=D"));
+
+        self.asm.push(Cow::Borrowed("@ARG"));
+        self.asm.push(Cow::Borrowed("D=M"));
+        self.asm.push(Cow::Borrowed("@SP"));
+        self.asm.push(Cow::Borrowed("M=D+1"));
+
+        self.asm.push(Cow::Borrowed("@LCL"));
+        self.asm.push(Cow::Borrowed("A=M-1"));
+        self.asm.push(Cow::Borrowed("D=M"));
+        self.asm.push(Cow::Borrowed("@THAT"));
+        self.asm.push(Cow::Borrowed("M=D"));
+
+        self.asm.push(Cow::Borrowed("@LCL"));
+        self.asm.push(Cow::Borrowed("D=M"));
+        self.asm.push(Cow::Borrowed("@2"));
+        self.asm.push(Cow::Borrowed("A=D-A"));
+        self.asm.push(Cow::Borrowed("D=M"));
+        self.asm.push(Cow::Borrowed("@THIS"));
+        self.asm.push(Cow::Borrowed("M=D"));
+
+        self.asm.push(Cow::Borrowed("@LCL"));
+        self.asm.push(Cow::Borrowed("D=M"));
+        self.asm.push(Cow::Borrowed("@3"));
+        self.asm.push(Cow::Borrowed("A=D-A"));
+        self.asm.push(Cow::Borrowed("D=M"));
+        self.asm.push(Cow::Borrowed("@ARG"));
+        self.asm.push(Cow::Borrowed("M=D"));
+
+        self.asm.push(Cow::Borrowed("@LCL"));
+        self.asm.push(Cow::Borrowed("D=M"));
+        self.asm.push(Cow::Borrowed("@4"));
+        self.asm.push(Cow::Borrowed("A=D-A"));
+        self.asm.push(Cow::Borrowed("D=M"));
+        self.asm.push(Cow::Borrowed("@LCL"));
+        self.asm.push(Cow::Borrowed("M=D"));
+
+        self.asm.push(Cow::Borrowed("@R13"));
+        self.asm.push(Cow::Borrowed("A=M"));
+        self.asm.push(Cow::Borrowed("0;JMP"));
+    }
+
+    fn push_static(&mut self, val: u16, path: impl AsRef<Path>) {
+        self.asm.push(Cow::Owned(
+            format! {"@{}.{}", path.as_ref().file_stem().unwrap().to_str().unwrap(), val},
+        ));
+        self.asm.push(Cow::Borrowed("D=M"));
+        self.push_dreg();
+    }
+
+    fn push_dreg(&mut self) {
+        self.asm.push(Cow::Borrowed("@SP"));
+        self.asm.push(Cow::Borrowed("A=M"));
+        self.asm.push(Cow::Borrowed("M=D"));
+        self.asm.push(Cow::Borrowed("@SP"));
+        self.asm.push(Cow::Borrowed("M=M+1"));
     }
 
     fn pop_static(&mut self, val: u16, path: impl AsRef<Path>) {

@@ -23,8 +23,8 @@ pub enum Command {
     Label(String),
     Goto(String),
     IfGoto(String),
-    Function(String, u8),
-    Call(String, u8),
+    Function(String, u16),
+    Call(String, u16),
     Return,
 }
 
@@ -88,12 +88,12 @@ fn parse_line(line: &str) -> Result<Command, &'static str> {
         }
         "function" => {
             let label: String = next_as(&mut words)?;
-            let arg_num: u8 = next_as(&mut words)?;
+            let arg_num: u16 = next_as(&mut words)?;
             Ok(Function(label, arg_num))
         }
         "call" => {
             let label: String = next_as(&mut words)?;
-            let arg_num: u8 = next_as(&mut words)?;
+            let arg_num: u16 = next_as(&mut words)?;
             Ok(Call(label, arg_num))
         }
         "return" => Ok(Return),
