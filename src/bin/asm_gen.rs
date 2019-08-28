@@ -30,11 +30,13 @@ fn main() {
     let mut gen = AsmGenerator::new(no_init);
     let input_path = Path::new(args.value_of("INPUT").unwrap());
     if input_path.is_dir() {
-        for path in input_path.read_dir().unwrap().filter(|p| {
-            let p = p.as_ref().unwrap().path();
-            p.is_file() && p.to_str().unwrap().ends_with("vm")
-        }) {
-            gen.gen(path.unwrap().path()).unwrap();
+        for path in input_path
+            .read_dir()
+            .unwrap()
+            .map(|p| p.unwrap().path())
+            .filter(|p| p.is_file() && p.to_str().unwrap().ends_with("vm"))
+        {
+            gen.gen(path).unwrap();
         }
     } else {
         if !input_path.to_str().unwrap().ends_with("vm") {
