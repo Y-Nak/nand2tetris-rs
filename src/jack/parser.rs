@@ -60,9 +60,9 @@ where
         let mut ret = Vec::new();
         loop {
             let ty = match self.tokens.peek() {
-                Some(Token::Keyword(Constructor)) => SubRoutineType::Constructor,
-                Some(Token::Keyword(Function)) => SubRoutineType::Function,
-                Some(Token::Keyword(Method)) => SubRoutineType::Method,
+                Some(Token::Keyword(Constructor)) => SubRoutineKind::Constructor,
+                Some(Token::Keyword(Function)) => SubRoutineKind::Function,
+                Some(Token::Keyword(Method)) => SubRoutineKind::Method,
                 _ => return Ok(ret),
             };
             self.tokens.next();

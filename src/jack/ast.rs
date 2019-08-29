@@ -1,34 +1,33 @@
-//use super::token::{Symbol, Token};
 use std::rc::Rc;
 
 pub struct ClassDec {
-    name: Rc<String>,
-    var_decs: Vec<ClassVarDec>,
-    subroutine_decs: Vec<SubRoutineDec>,
+    pub name: Rc<String>,
+    pub var_decs: Vec<ClassVarDec>,
+    pub subroutine_decs: Vec<SubRoutineDec>,
 }
 
 pub struct ClassVarDec {
-    var_ty: ClassVarType,
-    ty: Type,
-    names: Vec<Rc<String>>,
+    pub var_ty: ClassVarType,
+    pub ty: Type,
+    pub names: Vec<Rc<String>>,
 }
 
 pub struct SubRoutineDec {
-    name: Rc<String>,
-    ty: SubRoutineType,
-    ret: Type,
-    params: Vec<(Type, Rc<String>)>,
-    body: SubRoutineBody,
+    pub name: Rc<String>,
+    pub kind: SubRoutineKind,
+    pub ret: Type,
+    pub args: Vec<(Type, Rc<String>)>,
+    pub body: SubRoutineBody,
 }
 
 pub struct SubRoutineBody {
-    var_decs: Vec<VarDec>,
-    stmts: Vec<Stmt>,
+    pub var_decs: Vec<VarDec>,
+    pub stmts: Vec<Stmt>,
 }
 
 pub struct VarDec {
-    names: Vec<Rc<String>>,
-    ty: Type,
+    pub names: Vec<Rc<String>>,
+    pub ty: Type,
 }
 
 pub enum Stmt {
@@ -51,8 +50,8 @@ pub enum Stmt {
 }
 
 pub struct Expr {
-    lhs: Term,
-    cdr: Option<(Binop, Box<Term>)>,
+    pub lhs: Term,
+    pub cdr: Option<(Binop, Box<Term>)>,
 }
 
 pub enum Term {
@@ -66,6 +65,7 @@ pub enum Term {
     Expr(Box<Expr>),
 }
 
+#[derive(PartialEq, Eq)]
 pub enum ClassVarType {
     Static,
     Field,
@@ -79,18 +79,20 @@ pub enum Type {
     Void,
 }
 
-pub enum SubRoutineType {
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum SubRoutineKind {
     Constructor,
     Function,
     Method,
 }
 
 pub struct SubRoutineCall {
-    obj_name: Option<Rc<String>>,
-    routine_name: Rc<String>,
-    args: Vec<Expr>,
+    pub obj_name: Option<Rc<String>>,
+    pub routine_name: Rc<String>,
+    pub args: Vec<Expr>,
 }
 
+#[derive(Clone, Copy)]
 pub enum Binop {
     Plus,
     Minus,
@@ -103,6 +105,7 @@ pub enum Binop {
     Equal,
 }
 
+#[derive(Clone, Copy)]
 pub enum Unop {
     Minus,
     BitNot,
@@ -164,6 +167,10 @@ impl ClassDec {
         ret.push_str("</class>\n");
         ret
     }
+
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
 }
 
 impl ClassVarDec {
@@ -191,32 +198,32 @@ impl ClassVarDec {
 impl SubRoutineDec {
     pub fn new(
         name: Rc<String>,
-        ty: SubRoutineType,
+        kind: SubRoutineKind,
         ret: Type,
-        params: Vec<(Type, Rc<String>)>,
+        args: Vec<(Type, Rc<String>)>,
         body: SubRoutineBody,
     ) -> Self {
         Self {
             name,
-            ty,
+            kind,
             ret,
-            params,
+            args,
             body,
         }
     }
 
     fn write(&self, s: &mut String) {
         s.push_str("<subroutineDec>\n");
-        match self.ty {
-            SubRoutineType::Constructor => s.push_str(keyword! {"constructor"}),
-            SubRoutineType::Function => s.push_str(keyword! { "function"}),
-            SubRoutineType::Method => s.push_str(keyword! {"method"}),
+        match self.kind {
+            SubRoutineKind::Constructor => s.push_str(keyword! {"constructor"}),
+            SubRoutineKind::Function => s.push_str(keyword! { "function"}),
+            SubRoutineKind::Method => s.push_str(keyword! {"method"}),
         }
         &self.ret.write(s);
         s.push_str(&ident! {self.name});
         s.push_str(symbol! {"("});
         s.push_str("<parameterList>\n");
-        for (i, (ty, name)) in self.params.iter().enumerate() {
+        for (i, (ty, name)) in self.args.iter().enumerate() {
             if i > 0 {
                 s.push_str(symbol! {","});
             }
